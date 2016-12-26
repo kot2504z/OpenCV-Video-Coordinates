@@ -61,6 +61,7 @@ int main(int argc, char* argv[]) {
 
 	if (argc != 2) {
 		cout << "\nTo run program enter e.g 'VPlayer video.ext'\nEnter -help for more info and instructions\n";
+		system("PAUSE");
 		exit(EXIT_FAILURE);
 	}
 
