@@ -135,7 +135,6 @@ int main(int argc, char* argv[]) {
 	
 	//-int_x because im not video specialist, some formats, like wmv has some info in last 3 frames.
 	String s_x = argv[2];
-	s_x = "10";
 	int int_x;
 	istringstream x_to_int(s_x);
 	x_to_int >> int_x;
