@@ -1,0 +1,232 @@
+//c/c++ standard libraries
+#include <cstdlib>
+#include <iostream>
+#include <string>
+#include <windows.h>
+
+//opencv includes
+#include <opencv2/opencv.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv/cv.hpp>
+
+//namespaces, no more std:: or cv::
+using namespace std;
+using namespace cv;
+
+//only for testing
+//const String filename = "D:/Programs/Ffmpeg/video/2cars.mov";
+//VideoCapture cap(filename);
+
+//RGB arrays from OpenCV class MAT
+Mat frame, draw, rec;// yuv;
+
+//point is a opencv class where each object (in this case) has variable x, y;
+Point pt1, pt2;
+
+//play for play/pause wideo on keypress, drag for drawing rectangle, range for check "out of range" of rectangle
+bool play = true, drag = false, range = false;
+
+//slider - only as a type and point of begining of trackbar
+//total - total frames(however it resets when current!=total) massive impact on stability
+//slider_max - max trackbar position, current - current frame, height - height in px of loaded frame, width - width in px of loaded frame.
+int slider = 0, slider_max = 0, current = 0, total = 0, width = 0, height = 0;
+
+//what happens on changing slider position
+void on_trackbar(int, void*) {
+	//function which Gets Trackbar Position from tracbar "Frame" in window "Video Player"
+	current = getTrackbarPos("Frame", "Video Player");
+};
+
+//function of all mouse events
+void mouse_event(int event, int x, int y, int flags, void* param) {
+	//on event - left button pressed gets position of mouse and indicates that key is pressed (!drag)
+	if (event == CV_EVENT_LBUTTONDOWN && !drag) {
+		pt1 = Point(x, y);
+		drag = !drag;
+	}
+
+	//mouse moves and left is pressed.
+	if (event == CV_EVENT_MOUSEMOVE && drag) {
+		//clone value of rgb array frame to draw always when mouse moves
+		draw = frame.clone();
+
+		//draw a rectangle in draw array, from pt1 to actual position, every time mouse moves.
+		rectangle(draw, pt1, Point(x, y), CV_RGB(0, 0, 0), 2, 8, 0);
+
+		//show draw array every time mouse moves
+		imshow("Video Player", draw);
+	}
+
+	//left button up
+	if (event == CV_EVENT_LBUTTONUP && drag) {
+		//get position of mouse: x,y
+		pt2 = Point(x, y);
+
+		//however, if mouse leave the window area it would take the position anyway. we dont want this.
+		if (pt1 != pt2 && pt2.x >= 0 && pt2.y >= 0 && pt2.x <= width && pt2.y <= height) {
+			//final version of rectangle appears to our eyes
+			rectangle(draw, pt1, pt2, CV_RGB(0, 0, 0), 2, 8, 0);
+			imshow("Video Player", draw);
+
+			//so we know that we didnt exceed range of window
+			range = true;
+		}
+		else
+			//we exceed range
+			range = false;
+		//end of draging
+		drag = !drag;
+
+		// if u want to see how it works
+		// cout << pt1 << " " << pt2 << endl;
+	}
+	//if we press right mouse button
+	if (event == CV_EVENT_RBUTTONDOWN) {
+		//and the rectangle has been drawn
+		if (range) {
+			//copy the content of rectangle from draw array to rec array
+			draw(Rect(pt1, pt2)).copyTo(rec);
+
+			//create new autosized window named rec
+			namedWindow("rec", WINDOW_AUTOSIZE);
+
+			//show the image in window rec from array rec
+			imshow("rec", rec);
+
+			//we can also save the array to file. e.g:
+			//imwrite("file.png", rec); 
+			//or more creative: imwrite(save_as, rec);
+			//so our code for save_as should look like: global vars:
+			//ostringstream num; int i = 1; String save_as = "whatever", ext = "e.g png", count;
+			//num << i; count = num.str(); save_as += count; save_as += ext; imwrite(save_as, rec);
+			//in that way, we could save n pictures without overwriting
+		}
+	}
+	//right button up, shows frame from frame array. like before.
+	if (event == CV_EVENT_RBUTTONUP) {
+		imshow("Video Player", frame);
+		drag = false;
+	}
+}
+
+int main(int argc, char* argv[]) {
+
+	//its a code for loading video from console
+	if (argc < 2 || argc > 3) {
+		cout << "\nTo run program enter e.g 'VPlayer video.ext 3'\nEnter -help for more info and instructions\n";
+		system("PAUSE");
+		exit(EXIT_FAILURE);
+	}
+
+	String what_is = argv[1];
+	if (what_is == "-help") {
+		cout << "Vplayer video.avi 10 (1 - program name, 2 - file name, 3 - Last 10 frames doesnt count)" << endl;
+		cout << "to rewind: ',' - 1 frame left, '.' - 1 frame right" << endl;
+		cout << "spacebar - play/pause, 'q' - close all windows" << endl;
+		cout << "left mouse button + drag - select area" << endl;
+		cout << "right mouse button - copy area to new window" << endl;
+		exit(EXIT_SUCCESS);
+	}
+	VideoCapture cap(argv[1]);
+
+	if (!cap.isOpened()) {
+		cout << "Error Opening file.\n";
+		exit(EXIT_FAILURE);
+	}
+
+	//-int_x because im not video specialist, some formats, like wmv has some info in last 3 frames.
+	int int_x;
+
+	// anti cheat protection below
+	if (argc == 2)
+		int_x = 0;
+
+	if (argc == 3) {
+
+		String s_x = argv[2];
+		bool is_digit = true;
+		char digit;
+
+		// anti clever cheat protection
+		for (int i = 0; i < s_x.length(); i++) {
+			digit = s_x[i];
+			if (!isdigit(digit)) {
+				is_digit = false;
+				int_x = 0;
+			}
+		}
+		if (is_digit) {
+			istringstream x_to_int(s_x);
+			x_to_int >> int_x;
+		}
+	}
+	//object cap of class VideoCapture uses method get to get some info from video
+	slider_max = cap.get(CV_CAP_PROP_FRAME_COUNT) - int_x; // our - int_x
+	width = cap.get(CAP_PROP_FRAME_WIDTH);
+	height = cap.get(CAP_PROP_FRAME_HEIGHT);
+
+	//create such a window and trackbar in it, also a mouse call back for this window
+	namedWindow("Video Player", WINDOW_NORMAL);
+	createTrackbar("Frame", "Video Player", &slider, slider_max, on_trackbar);
+	setMouseCallback("Video Player", mouse_event, 0);
+
+	//it makes our code work properly only on windows, shot in the foot.
+	HWND handle = (HWND)cvGetWindowHandle("Video Player");
+	//video displaying.
+	while ((total <= slider_max) && IsWindowVisible(handle)) {
+		//current change whenever total changes, but also when we manually change the trackbar
+		if (current != total) {
+			//if it is, jump to current position, 
+			cap.set(CAP_PROP_POS_FRAMES, current);
+			total = current;
+		}
+
+		//declare how long we are w8ing for key each time
+		char key = waitKey(33);
+
+		//space = pause it however removes the rectangle if we somehow bug drawing by devil-hitting left mouse button
+		if (key == 32) {
+			drag = false;
+			play = !play;
+		}
+		//in pause mode we have few additional options
+		if (!play) {
+			//on keypressed ',' we are moving 1 frame left
+			if (key == 44)
+				if (current >= 1)
+					current -= 1;
+
+			//on keypressed '.' we are moving 1 frame right
+			if (key == 46)
+				if ((current + 1) <= slider_max)
+					current += 1;
+
+			//that happens when we change the current value on pause
+			if (current != cap.get(CV_CAP_PROP_POS_FRAMES)) {
+				cap.set(CAP_PROP_POS_FRAMES, current - 1);
+				cap >> frame;
+				imshow("Video Player", frame);
+			}
+		}
+		//that what happens when play is true
+		if (play) {
+			//when we moves the trackbar we must check that we are not going to read frame which doesnt exist
+			if (current < slider_max) {
+				current += 1;
+				total += 1;
+				//reading frame by frame. however it reads a frame from video, sends it to frame array, then displaying in code below
+				cap >> frame;
+				//if we want to do some formatting, here is an example
+				//cvtColor(frame, yuv, CV_RGB2YUV_I420);		
+				imshow("Video Player", frame);
+			}
+			else
+				play = false;
+		}
+		//sets tracbar position
+		setTrackbarPos("Frame", "Video Player", current);
+	}
+	//kind of destructor
+	destroyAllWindows();
+	return 0;
+}
