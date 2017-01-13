@@ -226,7 +226,7 @@ int main(int argc, char* argv[]) {
 	cout << "left mouse button + alt - save coordinates of selected area to file" << endl;
 	cout << "left mouse button + ctrl - deselect area" << endl;
 	cout << "right mouse button - copy area to new window" << endl;
-	cout << "right mouse button + ctrl - save area to png file" << endl;
+	cout << "right mouse button + shift - save area to png file" << endl;
 	cout << "\nNew window 'zoom' usage" << endl;
 	cout << "left mouse button to zoom-in" << endl;
 	cout << "right mouse button to zoom-out" << endl;
